@@ -1,6 +1,6 @@
 # OpenAI Image Generation MCP Server
 
-Enables Claude to create visual images using OpenAI's DALL-E 3.
+Enables Claude to create visual images using OpenAI's latest image generation models (DALL-E 3, and GPT-Image-1 when available).
 
 ## What This Enables
 
@@ -76,7 +76,7 @@ You can override this by specifying a custom `save_path` parameter.
 
 ### 1. generate_image
 
-Generates an image using DALL-E 3 and returns a temporary URL.
+Generates an image using OpenAI's models and returns a temporary URL.
 
 **Parameters:**
 - `prompt` (required): Text description of the image (max 4000 characters)
@@ -90,6 +90,10 @@ Generates an image using DALL-E 3 and returns a temporary URL.
 - `style`: Visual style
   - `"vivid"` (default, dramatic and hyper-real)
   - `"natural"` (more natural, less stylized)
+- `model`: Model to use
+  - `"dall-e-3"` (default, widely available)
+  - `"dall-e-2"` (older model)
+  - `"gpt-image-1"` (newest, may require additional access)
 
 **Returns:**
 - `success`: Whether generation succeeded

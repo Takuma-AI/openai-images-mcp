@@ -57,16 +57,18 @@ async def generate_image(
     prompt: str,
     size: Optional[str] = "1024x1024",
     quality: Optional[str] = "standard",
-    style: Optional[str] = "vivid"
+    style: Optional[str] = "vivid",
+    model: Optional[str] = "dall-e-3"
 ) -> Dict[str, Any]:
     """
-    Generate an image using OpenAI's DALL-E 3.
+    Generate an image using OpenAI's image generation models.
     
     Args:
         prompt: Text description of the image to generate (max 4000 chars)
         size: Image dimensions - "1024x1024", "1792x1024", or "1024x1792"
         quality: "standard" (faster, lower cost) or "hd" (higher quality, slower)
         style: "vivid" (dramatic, hyper-real) or "natural" (more natural, less stylized)
+        model: Model to use - "dall-e-3" (default), "dall-e-2", or "gpt-image-1" (if available)
     
     Returns:
         Dict with success status, image URL, and revised prompt
@@ -111,10 +113,11 @@ async def generate_image(
         client = OpenAI(api_key=CREDS['api_key'])
         
         # Generate image
+        # Note: gpt-image-1 may require additional access/approval from OpenAI
         response = client.images.generate(
-            model="dall-e-3",
+            model=model,
             prompt=prompt,
-            n=1,  # DALL-E 3 only supports n=1
+            n=1,  # Most models only support n=1
             size=size,
             quality=quality,
             style=style,
@@ -244,6 +247,7 @@ async def generate_and_save_image(
     size: Optional[str] = "1024x1024",
     quality: Optional[str] = "standard",
     style: Optional[str] = "vivid",
+    model: Optional[str] = "dall-e-3",
     filename: Optional[str] = None,
     save_path: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -256,6 +260,7 @@ async def generate_and_save_image(
         size: Image dimensions - "1024x1024", "1792x1024", or "1024x1792"
         quality: "standard" (faster, lower cost) or "hd" (higher quality, slower)
         style: "vivid" (dramatic, hyper-real) or "natural" (more natural, less stylized)
+        model: Model to use - "dall-e-3" (default), "dall-e-2", or "gpt-image-1" (if available)
         filename: Optional custom filename (without extension)
         save_path: Optional custom save directory
     
@@ -264,7 +269,7 @@ async def generate_and_save_image(
     """
     
     # Generate the image first
-    generation_result = await generate_image(prompt, size, quality, style)
+    generation_result = await generate_image(prompt, size, quality, style, model)
     
     if not generation_result.get('success'):
         return generation_result
