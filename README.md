@@ -65,11 +65,18 @@ Once connected, you can ask Claude:
 - "Make an HD image of a steampunk inventor's workshop"
 - "Generate a natural-style portrait of a friendly robot"
 
+## Default Save Location
+
+Generated images are automatically saved to:
+- `takuma-os/local/generated-images/` (gitignored directory)
+
+You can override this by specifying a custom `save_path` parameter.
+
 ## Available Tools
 
-### generate_image
+### 1. generate_image
 
-Generates an image using DALL-E 3.
+Generates an image using DALL-E 3 and returns a temporary URL.
 
 **Parameters:**
 - `prompt` (required): Text description of the image (max 4000 characters)
@@ -90,6 +97,42 @@ Generates an image using DALL-E 3.
 - `revised_prompt`: The expanded prompt DALL-E actually used
 - `parameters`: The settings used for generation
 - `error`: Error message if generation failed
+
+### 2. save_generated_image
+
+Downloads and saves a generated image locally.
+
+**Parameters:**
+- `image_url` (required): The URL of the generated image from OpenAI
+- `filename`: Optional custom filename (without extension, defaults to timestamp)
+- `save_path`: Optional custom save directory (defaults to `local/generated-images`)
+
+**Returns:**
+- `success`: Whether save succeeded
+- `file_path`: Absolute path to saved file
+- `relative_path`: Path relative to project root
+- `filename`: The filename used
+- `size_bytes`: Size of the saved file
+
+### 3. generate_and_save_image
+
+Generates an image and automatically saves it locally in one step.
+
+**Parameters:**
+- `prompt` (required): Text description of the image
+- `size`: Image dimensions (same as generate_image)
+- `quality`: Image quality (same as generate_image)
+- `style`: Visual style (same as generate_image)
+- `filename`: Optional custom filename (without extension)
+- `save_path`: Optional custom save directory
+
+**Returns:**
+- All fields from generate_image plus:
+- `file_path`: Absolute path to saved file
+- `relative_path`: Path relative to project root
+- `filename`: The filename used
+
+**This is the recommended tool for most use cases** as it handles both generation and saving automatically.
 
 ## Cost Considerations
 

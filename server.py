@@ -10,6 +10,9 @@ from typing import Optional, Dict, Any
 from openai import OpenAI
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+import httpx
+from datetime import datetime
+from pathlib import Path
 
 # Load .env file - first try project root, then local
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +27,9 @@ elif os.path.exists(local_env):
 
 # Initialize MCP server
 mcp = FastMCP("openai-images")
+
+# Default save location - in takuma-os local directory (gitignored)
+DEFAULT_SAVE_PATH = os.path.join(project_root, 'local', 'generated-images')
 
 # Get credentials from environment or saved file
 def load_credentials() -> Dict[str, str]:
@@ -154,6 +160,141 @@ async def generate_image(
                 "success": False,
                 "error": f"Failed to generate image: {error_msg}"
             }
+
+@mcp.tool()
+async def save_generated_image(
+    image_url: str,
+    filename: Optional[str] = None,
+    save_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Download and save a generated image locally.
+    
+    Args:
+        image_url: The URL of the generated image from OpenAI
+        filename: Optional custom filename (without extension). If not provided, uses timestamp
+        save_path: Optional custom save directory. If not provided, uses default location
+    
+    Returns:
+        Dict with success status and local file path
+    """
+    
+    try:
+        # Determine save directory
+        if save_path:
+            # Use provided path relative to project root if not absolute
+            if not os.path.isabs(save_path):
+                save_dir = os.path.join(project_root, save_path)
+            else:
+                save_dir = save_path
+        else:
+            # Use default location
+            save_dir = DEFAULT_SAVE_PATH
+        
+        # Create directory if it doesn't exist
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename if not provided
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"dalle_image_{timestamp}"
+        
+        # Ensure filename doesn't have extension (we'll add .png)
+        if filename.endswith(('.png', '.jpg', '.jpeg')):
+            filename = os.path.splitext(filename)[0]
+        
+        # Full file path
+        file_path = os.path.join(save_dir, f"{filename}.png")
+        
+        # Download the image
+        async with httpx.AsyncClient() as client:
+            response = await client.get(image_url)
+            
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"Failed to download image: HTTP {response.status_code}"
+                }
+            
+            # Save the image
+            with open(file_path, 'wb') as f:
+                f.write(response.content)
+            
+            # Get relative path from project root for cleaner display
+            relative_path = os.path.relpath(file_path, project_root)
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "relative_path": relative_path,
+                "filename": f"{filename}.png",
+                "size_bytes": len(response.content),
+                "message": f"Image saved successfully to {relative_path}"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to save image: {str(e)}"
+        }
+
+@mcp.tool()
+async def generate_and_save_image(
+    prompt: str,
+    size: Optional[str] = "1024x1024",
+    quality: Optional[str] = "standard",
+    style: Optional[str] = "vivid",
+    filename: Optional[str] = None,
+    save_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Generate an image and automatically save it locally.
+    Combines generation and saving in one step.
+    
+    Args:
+        prompt: Text description of the image to generate (max 4000 chars)
+        size: Image dimensions - "1024x1024", "1792x1024", or "1024x1792"
+        quality: "standard" (faster, lower cost) or "hd" (higher quality, slower)
+        style: "vivid" (dramatic, hyper-real) or "natural" (more natural, less stylized)
+        filename: Optional custom filename (without extension)
+        save_path: Optional custom save directory
+    
+    Returns:
+        Dict with success status, image URL, local file path, and revised prompt
+    """
+    
+    # Generate the image first
+    generation_result = await generate_image(prompt, size, quality, style)
+    
+    if not generation_result.get('success'):
+        return generation_result
+    
+    # Save the generated image
+    save_result = await save_generated_image(
+        image_url=generation_result['image_url'],
+        filename=filename,
+        save_path=save_path
+    )
+    
+    if not save_result.get('success'):
+        # Still return the generation result with save error
+        return {
+            **generation_result,
+            "save_error": save_result.get('error'),
+            "message": f"Image generated but failed to save: {save_result.get('error')}"
+        }
+    
+    # Combine both results
+    return {
+        "success": True,
+        "image_url": generation_result['image_url'],
+        "revised_prompt": generation_result['revised_prompt'],
+        "parameters": generation_result['parameters'],
+        "file_path": save_result['file_path'],
+        "relative_path": save_result['relative_path'],
+        "filename": save_result['filename'],
+        "message": f"Image generated and saved to {save_result['relative_path']}"
+    }
 
 if __name__ == "__main__":
     mcp.run()
